@@ -17,6 +17,18 @@ const CityBikeAvailability = mapProps(
     const total = Number.isNaN(totalSpaces) ? 0 : totalSpaces;
     const available = Number.isNaN(bikesAvailable) ? 0 : bikesAvailable;
 
+    let translationId;
+
+    if (type === 'scooter') {
+      translationId = 'scooter-availability';
+    } else if (type === 'taxi') {
+      translationId = 'taxi-availability';
+    } else if (type === 'car-sharing') {
+      translationId = 'car-availability';
+    } else {
+      translationId = 'bike-availability';
+    }
+
     return {
       available,
       total,
@@ -24,14 +36,11 @@ const CityBikeAvailability = mapProps(
       text: (
         <p className="sub-header-h4 availability-header">
           <FormattedMessage
-            id={
-              type === 'scooter' ? 'scooter-availability' : 'bike-availability'
-            }
-            defaultMessage="Bikes available at the station right now:"
+            id={translationId}
+            defaultMessage="Bikes available at the station right now"
           />
-          {'\u00a0'}
-          {available}
-          {useSpacesAvailable && <React.Fragment>/{total}</React.Fragment>}
+          {'\u00a0'}({available}
+          {useSpacesAvailable && <React.Fragment>/{total}</React.Fragment>})
         </p>
       ),
       showStatusBar: useSpacesAvailable,

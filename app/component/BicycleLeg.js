@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import React from 'react';
 import moment from 'moment';
-import { FormattedMessage } from 'react-intl';
+import { FormattedMessage, intlShape } from 'react-intl';
 import RouteNumber from './RouteNumber';
 import Icon from './Icon';
 import ComponentUsageExample from './ComponentUsageExample';
@@ -15,10 +15,14 @@ import {
   getCityBikeNetworkConfig,
   getCityBikeNetworkId,
   CityBikeNetworkType,
+  getCityBikeUrl,
 } from '../util/citybikes';
 import { isKeyboardSelectionEvent } from '../util/browser';
+import ServiceAlertIcon from './ServiceAlertIcon';
+import { AlertSeverityLevelType } from '../constants';
+import { getServiceAlertDescription } from '../util/alertUtils';
 
-function BicycleLeg({ focusAction, index, leg }, { config }) {
+function BicycleLeg({ focusAction, index, leg }, { config, intl }) {
   let stopsDescription;
   const distance = displayDistance(parseInt(leg.distance, 10), config);
   const duration = durationToString(leg.duration * 1000);
@@ -61,14 +65,24 @@ function BicycleLeg({ focusAction, index, leg }, { config }) {
   }
 
   let networkIcon;
+  let freeFloatAlert = null;
+  let rentalUri;
 
   if (leg.rentedBike === true) {
+    const alerts = leg.alerts || [];
+    [freeFloatAlert] = alerts.filter(
+      (a) => a.alertId === 'bike_rental_free_floating_drop_off',
+    );
     networkIcon = networkConfig && getCityBikeNetworkIcon(networkConfig);
+    rentalUri =
+      leg.from.bikeRentalStation.rentalUriWeb ||
+      getCityBikeUrl(leg.from.bikeRentalStation.networks, intl.locale, config);
 
     modeClassName = 'citybike';
+    const rentAt = `rent-at-${networkConfig.type}`;
     legDescription = (
       <FormattedMessage
-        id={isScooter ? 'rent-scooter-at' : 'rent-cycle-at'}
+        id={rentAt}
         values={{ station: leg.from ? leg.from.name : '' }}
         defaultMessage="Rent a bike at {station} station"
       />
@@ -108,13 +122,15 @@ function BicycleLeg({ focusAction, index, leg }, { config }) {
           mode={mode}
           vertical
           icon={networkIcon}
+          subIcon={freeFloatAlert ? 'icon-icon_caution' : ''}
+          subIconClass={freeFloatAlert ? 'subicon-caution' : ''}
           {...getLegBadgeProps(leg, config)}
         />
       </div>
       <ItineraryCircleLine index={index} modeClassName={modeClassName} />
       <div
         onClick={focusAction}
-        onKeyPress={e => isKeyboardSelectionEvent(e) && focusAction(e)}
+        onKeyPress={(e) => isKeyboardSelectionEvent(e) && focusAction(e)}
         role="button"
         tabIndex="0"
         className={`small-9 columns itinerary-instruction-column ${firstLegClassName} ${mode.toLowerCase()}`}
@@ -131,13 +147,39 @@ function BicycleLeg({ focusAction, index, leg }, { config }) {
         </div>
         <div className="itinerary-leg-action" aria-hidden="true">
           {stopsDescription}
+          {freeFloatAlert && (
+            <div className="itinerary-leg-first-row itinerary-alert-info citybike">
+              <ServiceAlertIcon
+                className="inline-icon"
+                severityLevel={AlertSeverityLevelType.Info}
+              />
+              {getServiceAlertDescription(freeFloatAlert, intl.locale)}
+            </div>
+          )}
+          {rentalUri && (
+            <a
+              href={rentalUri}
+              rel="noopener noreferrer"
+              className="citybike-website-btn"
+              target="_blank"
+            >
+              <button className="standalone-btn cursor-pointer">
+                <FormattedMessage id="use-citybike" />
+              </button>
+            </a>
+          )}
         </div>
       </div>
+      <span className="sr-only">
+        {!!freeFloatAlert && (
+          <FormattedMessage id="itinerary-details.route-has-info-alert" />
+        )}
+      </span>
     </div>
   );
 }
 
-const exampleLeg = t1 => ({
+const exampleLeg = (t1) => ({
   duration: 120,
   startTime: t1 + 20000,
   distance: 586.4621425755712,
@@ -146,7 +188,7 @@ const exampleLeg = t1 => ({
   rentedBike: false,
 });
 
-const exampleLegWalkingBike = t1 => ({
+const exampleLegWalkingBike = (t1) => ({
   duration: 120,
   startTime: t1 + 20000,
   distance: 586.4621425755712,
@@ -155,7 +197,7 @@ const exampleLegWalkingBike = t1 => ({
   rentedBike: false,
 });
 
-const exampleLegCitybike = t1 => ({
+const exampleLegCitybike = (t1) => ({
   duration: 120,
   startTime: t1 + 20000,
   distance: 586.4621425755712,
@@ -164,7 +206,7 @@ const exampleLegCitybike = t1 => ({
   rentedBike: true,
 });
 
-const exampleLegCitybikeWalkingBike = t1 => ({
+const exampleLegCitybikeWalkingBike = (t1) => ({
   duration: 120,
   startTime: t1 + 20000,
   distance: 586.4621425755712,
@@ -173,7 +215,7 @@ const exampleLegCitybikeWalkingBike = t1 => ({
   rentedBike: true,
 });
 
-const exampleLegScooter = t1 => ({
+const exampleLegScooter = (t1) => ({
   duration: 120,
   startTime: t1 + 20000,
   distance: 586.4621425755712,
@@ -185,7 +227,7 @@ const exampleLegScooter = t1 => ({
   rentedBike: true,
 });
 
-const exampleLegScooterWalkingScooter = t1 => ({
+const exampleLegScooterWalkingScooter = (t1) => ({
   duration: 120,
   startTime: t1 + 20000,
   distance: 586.4621425755712,
@@ -198,11 +240,7 @@ const exampleLegScooterWalkingScooter = t1 => ({
 });
 
 BicycleLeg.description = () => {
-  const today = moment()
-    .hour(12)
-    .minute(34)
-    .second(0)
-    .valueOf();
+  const today = moment().hour(12).minute(34).second(0).valueOf();
   return (
     <div>
       <p>Displays an itinerary bicycle leg.</p>
@@ -262,11 +300,15 @@ BicycleLeg.propTypes = {
     }).isRequired,
     mode: PropTypes.string.isRequired,
     rentedBike: PropTypes.bool.isRequired,
+    alerts: PropTypes.array,
   }).isRequired,
   index: PropTypes.number.isRequired,
   focusAction: PropTypes.func.isRequired,
 };
 
-BicycleLeg.contextTypes = { config: PropTypes.object.isRequired };
+BicycleLeg.contextTypes = {
+  config: PropTypes.object.isRequired,
+  intl: intlShape.isRequired,
+};
 
 export default BicycleLeg;
